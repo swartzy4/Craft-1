@@ -22,4 +22,4 @@
 
 3.1) The software shall have the light source move across the sky appropriately to simulate days.
 
-3.2) The software shall have the light source be no more than 2 inches when measured on a video display.
+3.2) The software shall have the light source take up no more than 30% of the screen space.
