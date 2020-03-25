@@ -18,8 +18,8 @@
 
 ## 3) Sun for a reference light source
 
-3.0) The software shall provide a bright light source in the virtual sky.
+3.0) The software shall provide a light source in the virtual sky.
 
-3.1) The software shall have the light source move across the sky appropriately to simulate days.
+3.1) The software shall have the light source move across the sky in accordance to the simulated day and night cycle.
 
 3.2) The software shall have the light source take up no more than 30% of the screen space.
