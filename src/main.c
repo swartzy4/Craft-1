@@ -247,6 +247,15 @@ GLuint gen_wireframe_buffer(float x, float y, float z, float n) {
     make_cube_wireframe(data, x, y, z, n);
     return gen_buffer(sizeof(data), data);
 }
+/// New function created for generating the sun buffer for creating the sun sphere
+/// in the skybox using the sun attribute
+GLuint gen_sun_buffer() {
+    GLfloat *data = malloc_faces(8, 6);
+    //generating buffer data for sun
+    make_sun_cube_faces(data, 1, 1, 1, 1, 1, 1, 0, 0, g->render_radius*32 + 64, 5);
+  //  return gen_buffer(sizeof(data), data);
+    return gen_faces(8, 6, data);
+}
 
 GLuint gen_sky_buffer() {
     float data[12288];
@@ -342,7 +351,21 @@ void draw_triangles_3d(Attrib *attrib, GLuint buffer, int count) {
     glDisableVertexAttribArray(attrib->uv);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
-
+//////////////////////////////////////////////////////////////////
+//new prototype function to draw the triangles for sun
+void draw_triangles_2D_sun(Attrib *attrib, GLuint buffer, int count) {
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glEnableVertexAttribArray(attrib->position);
+    glEnableVertexAttribArray(attrib->uv);
+    glVertexAttribPointer(attrib->position, 3, GL_FLOAT, GL_FALSE,
+        sizeof(GLfloat) * 5, 0);
+    glVertexAttribPointer(attrib->uv, 2, GL_FLOAT, GL_FALSE,
+        sizeof(GLfloat) * 5, (GLvoid *)(sizeof(GLfloat) * 3));
+    glDrawArrays(GL_TRIANGLES, 0, count);
+    glDisableVertexAttribArray(attrib->position);
+    glDisableVertexAttribArray(attrib->uv);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 void draw_triangles_2d(Attrib *attrib, GLuint buffer, int count) {
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glEnableVertexAttribArray(attrib->position);
@@ -1605,7 +1628,9 @@ void builder_block(int x, int y, int z, int w) {
         set_block(x, y, z, w);
     }
 }
-
+//possibly add another param for another attrib for the sun, delete shader program
+//in use for current implentation and use new shader param instead
+//only once we get to building the actual shadows
 int render_chunks(Attrib *attrib, Player *player) {
     int result = 0;
     State *s = &player->state;
@@ -1729,6 +1754,33 @@ void render_sky(Attrib *attrib, Player *player, GLuint buffer) {
     glUniform1i(attrib->sampler, 2);
     glUniform1f(attrib->timer, time_of_day());
     draw_triangles_3d(attrib, buffer, 512 * 3);
+}
+/////////////////////////////////////////////////////////////
+//work in progress obviously
+//NOTE: ALL matrix tranlations, rotations, etc done for all projection and view
+// matrices in matrix.c
+//Update 03-30 set matrix 3d is the function I think assiocated with creating the sun in
+//an area so that two world domes aren't created (i think)
+//Update 03-31 set initial values for attributes for the sun shaders here, maybe
+//not use draw_triangles_3d; make one? or just send random value as buffer param for it
+/** Function render_sun, takes an attribute onject, player object, and Gl unsigned
+*  int as param values.
+*  Implements Req 3) The software shall have a "sun" for a reference light source.
+*/
+void render_sun(Attrib *attrib, Player *player, GLuint buffer) {
+    State *s = &player->state;
+    float matrix[16];
+    set_matrix_3d(
+        matrix, g->width, g->height,
+        0, 0, 0, s->rx, s->ry, g->fov, 0, g->render_radius);
+    glUseProgram(attrib->program);
+    glUniformMatrix4fv(attrib->matrix, 1, GL_FALSE, matrix);
+    glUniform1i(attrib->sampler, 4);
+    //glUniform1i(attrib->timer, time_of_day());
+    //trying to use proto Function
+  //  draw_triangles_2D_sun(attrib, buffer, 10);
+    draw_triangles_3d(attrib, buffer, 512);
+
 }
 
 void render_wireframe(Attrib *attrib, Player *player) {
@@ -2651,11 +2703,24 @@ int main(int argc, char **argv) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     load_png_texture("textures/sign.png");
 
+    //adding sun
+    GLuint sun;
+    glGenTextures(1, &sun);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, sun);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    load_png_texture("textures/sun.png");
+
     // LOAD SHADERS //
     Attrib block_attrib = {0};
     Attrib line_attrib = {0};
     Attrib text_attrib = {0};
     Attrib sky_attrib = {0};
+    //adding sun attribute
+    Attrib sun_attrib = {0};
     GLuint program;
 
     program = load_program(
@@ -2697,6 +2762,19 @@ int main(int argc, char **argv) {
     sky_attrib.matrix = glGetUniformLocation(program, "matrix");
     sky_attrib.sampler = glGetUniformLocation(program, "sampler");
     sky_attrib.timer = glGetUniformLocation(program, "timer");
+
+    //shader for sunlight
+    program = load_program(
+        "shaders/sun_lighting_vertex.glsl", "shaders/sun_lighting_fragment.glsl");
+    sun_attrib.program = program;
+    sun_attrib.position = glGetAttribLocation(program, "position");
+    sun_attrib.normal = glGetAttribLocation(program, "normal");
+    sun_attrib.uv = glGetAttribLocation(program, "uv");
+    sun_attrib.matrix = glGetUniformLocation(program, "matrix");
+    sun_attrib.sampler = glGetUniformLocation(program, "sampler");
+    sun_attrib.extra1 = glGetUniformLocation(program, "frag_timer");
+
+
 
     // CHECK COMMAND LINE ARGUMENTS //
     if (argc == 2 || argc == 3) {
@@ -2756,6 +2834,7 @@ int main(int argc, char **argv) {
         double last_commit = glfwGetTime();
         double last_update = glfwGetTime();
         GLuint sky_buffer = gen_sky_buffer();
+        GLuint sun_buffer = gen_sun_buffer();
 
         Player *me = g->players;
         State *s = &g->players->state;
@@ -2834,6 +2913,11 @@ int main(int argc, char **argv) {
             glClear(GL_DEPTH_BUFFER_BIT);
             render_sky(&sky_attrib, player, sky_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_BLEND);
+          //Call to render sun prior to loading wireframe/world
+            render_sun(&sun_attrib, player, sun_buffer);
+            glClear(GL_DEPTH_BUFFER_BIT);
+          //  glClear(GL_BLEND);
             int face_count = render_chunks(&block_attrib, player);
             render_signs(&text_attrib, player);
             render_sign(&text_attrib, player);
@@ -2922,6 +3006,7 @@ int main(int argc, char **argv) {
                 g->fov = 65;
 
                 render_sky(&sky_attrib, player, sky_buffer);
+                render_sun(&sun_attrib, player, sun_buffer);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 render_chunks(&block_attrib, player);
                 render_signs(&text_attrib, player);

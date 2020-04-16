@@ -78,6 +78,73 @@ void make_cube_faces(
         }
     }
 }
+void make_sun_cube_faces(
+    float *data, int left, int right, int top, int bottom, int front, int back, int x,
+    int y, int z, float n)
+    {
+      static const float positions[6][4][3] = {
+          {{-1, -1, -1}, {-1, -1, +1}, {-1, +1, -1}, {-1, +1, +1}},
+          {{+1, -1, -1}, {+1, -1, +1}, {+1, +1, -1}, {+1, +1, +1}},
+          {{-1, +1, -1}, {-1, +1, +1}, {+1, +1, -1}, {+1, +1, +1}},
+          {{-1, -1, -1}, {-1, -1, +1}, {+1, -1, -1}, {+1, -1, +1}},
+          {{-1, -1, -1}, {-1, +1, -1}, {+1, -1, -1}, {+1, +1, -1}},
+          {{-1, -1, +1}, {-1, +1, +1}, {+1, -1, +1}, {+1, +1, +1}}
+      };
+      static const float normals[6][3] = {
+          {-1, 0, 0},
+          {+1, 0, 0},
+          {0, +1, 0},
+          {0, -1, 0},
+          {0, 0, -1},
+          {0, 0, +1}
+      };
+      static const float uvs[6][4][2] = {
+          {{0, 0}, {1, 0}, {0, 1}, {1, 1}},
+          {{1, 0}, {0, 0}, {1, 1}, {0, 1}},
+          {{0, 1}, {0, 0}, {1, 1}, {1, 0}},
+          {{0, 0}, {0, 1}, {1, 0}, {1, 1}},
+          {{0, 0}, {0, 1}, {1, 0}, {1, 1}},
+          {{1, 0}, {1, 1}, {0, 0}, {0, 1}}
+      };
+      static const float indices[6][6] = {
+          {0, 3, 2, 0, 1, 3},
+          {0, 3, 1, 0, 2, 3},
+          {0, 3, 2, 0, 1, 3},
+          {0, 3, 1, 0, 2, 3},
+          {0, 3, 2, 0, 1, 3},
+          {0, 3, 1, 0, 2, 3}
+      };
+      static const float flipped[6][6] = {
+          {0, 1, 2, 1, 3, 2},
+          {0, 2, 1, 2, 3, 1},
+          {0, 1, 2, 1, 3, 2},
+          {0, 2, 1, 2, 3, 1},
+          {0, 1, 2, 1, 3, 2},
+          {0, 2, 1, 2, 3, 1}
+      };
+      float *d = data;
+      float s = 0.0625;
+      float a = 0 + 1 / 2048.0;
+      float b = s - 1 / 2048.0;
+      int faces[6] = {left, right, top, bottom, front, back};
+    //  int tiles[6] = {wleft, wright, wtop, wbottom, wfront, wback};
+      for (int i = 0; i < 6; i++) {
+          if(faces[i] == 0) {
+            continue;
+          }
+          for (int v = 0; v < 6; v++) {
+              int j = indices[i][v];
+              *(d++) = x + n * positions[i][j][0];
+              *(d++) = y + n * positions[i][j][1];
+              *(d++) = z + n * positions[i][j][2];
+              *(d++) = normals[i][0];
+              *(d++) = normals[i][1];
+              *(d++) = normals[i][2];
+              *(d++) = uvs[i][j][0];
+              *(d++) = uvs[i][j][1];
+          }
+      }
+    }
 
 void make_cube(
     float *data, float ao[6][4], float light[6][4],
@@ -96,6 +163,7 @@ void make_cube(
         wleft, wright, wtop, wbottom, wfront, wback,
         x, y, z, n);
 }
+
 
 void make_plant(
     float *data, float ao, float light,
