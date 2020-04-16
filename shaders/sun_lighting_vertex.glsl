@@ -1,7 +1,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////
-///This code is the vertex shader for the lighting effects from the sun source
+///This code is the vertex shader for the sun source
 ///We chose directional lighting because we felt that it was easier to implement
-///to the scene as a whole
+///to the scene as a whole. This directional lighting will be impletented in time
+///as well as a shader program for the shadow map.
 #version 120
 
 

@@ -78,6 +78,8 @@ void make_cube_faces(
         }
     }
 }
+///Function make_sun_cube_faces: takes in data from gen_sun_buffer function to make a
+///for now generic sun in the sky
 void make_sun_cube_faces(
     float *data, int left, int right, int top, int bottom, int front, int back, int x,
     int y, int z, float n)
@@ -163,7 +165,6 @@ void make_cube(
         wleft, wright, wtop, wbottom, wfront, wback,
         x, y, z, n);
 }
-
 
 void make_plant(
     float *data, float ao, float light,
