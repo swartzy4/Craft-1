@@ -80,6 +80,9 @@ void make_cube_faces(
 }
 ///Function make_sun_cube_faces: takes in data from gen_sun_buffer function to make a
 ///for now generic sun in the sky
+/// Update 04/21: Updated outer loop to only do 1 iteration so that one face or 2D square
+/// is made instead of a whole cube. Also using the first index value for indices array
+/// so that the correct face is shown when in different positions in the sky.
 void make_sun_cube_faces(
     float *data, int left, int right, int top, int bottom, int front, int back, int x,
     int y, int z, float n)
@@ -116,32 +119,25 @@ void make_sun_cube_faces(
           {0, 3, 2, 0, 1, 3},
           {0, 3, 1, 0, 2, 3}
       };
-      static const float flipped[6][6] = {
-          {0, 1, 2, 1, 3, 2},
-          {0, 2, 1, 2, 3, 1},
-          {0, 1, 2, 1, 3, 2},
-          {0, 2, 1, 2, 3, 1},
-          {0, 1, 2, 1, 3, 2},
-          {0, 2, 1, 2, 3, 1}
-      };
       float *d = data;
-      float s = 0.0625;
-      float a = 0 + 1 / 2048.0;
-      float b = s - 1 / 2048.0;
       int faces[6] = {left, right, top, bottom, front, back};
-    //  int tiles[6] = {wleft, wright, wtop, wbottom, wfront, wback};
-      for (int i = 0; i < 6; i++) {
-          if(faces[i] == 0) {
-            continue;
-          }
+      
+      // Outer loop for making the sun face. Values for the first index in indices
+      // array indicates which face to make, which is given by the params in the original
+      // function. 0 = left, 1 = right, 2 = top, 3 = bottom, 4 = front, 5 = back
+      // uv's don't matter since whole texture is used, will be adjusted in frag shader
+      // and possibly here when making it move with time
+      for (int i = 0; i < 1; i++) {
+
+
           for (int v = 0; v < 6; v++) {
-              int j = indices[i][v];
-              *(d++) = x + n * positions[i][j][0];
-              *(d++) = y + n * positions[i][j][1];
-              *(d++) = z + n * positions[i][j][2];
-              *(d++) = normals[i][0];
-              *(d++) = normals[i][1];
-              *(d++) = normals[i][2];
+              int j = indices[3][v];
+              *(d++) = x + n * positions[3][j][0];
+              *(d++) = y + n * positions[3][j][1];
+              *(d++) = z + n * positions[3][j][2];
+              *(d++) = normals[3][0];
+              *(d++) = normals[3][1];
+              *(d++) = normals[3][2];
               *(d++) = uvs[i][j][0];
               *(d++) = uvs[i][j][1];
           }

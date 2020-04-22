@@ -249,12 +249,18 @@ GLuint gen_wireframe_buffer(float x, float y, float z, float n) {
 }
 /// New function created for generating the sun buffer for creating the sun sphere
 /// in the skybox using the sun attribute
+/// Update 04/21: Changed buffer so that the y and x params for make_sun_cube_faces
+/// is able to generate the sun in the sky anywhere by adjusting them accordingly
+/// Will be updating soon to use time_of_day() to move accordingly to the day/night cycle
 GLuint gen_sun_buffer() {
-    GLfloat *data = malloc_faces(8, 6);
+    GLfloat *data = malloc_faces(8, 1);
     //generating buffer data for sun
-    make_sun_cube_faces(data, 1, 1, 1, 1, 1, 1, 0, 0, g->render_radius*32 + 64, 5);
-  //  return gen_buffer(sizeof(data), data);
-    return gen_faces(8, 6, data);
+    //z is the render radius (10) * 32 + 64 bits to render in same area as the skybox
+    // Currently sun is set to noon, and the value 10*32 represents it being straight above,
+    // 0 on the z and x indicate it to be the center of the world as well
+    make_sun_cube_faces(data, 1, 1, 1, 1, 1, 1, 0, 10*32, 0, 10);
+    //return gen_buffer(sizeof(data), data);
+    return gen_faces(8, 1, data);
 }
 
 GLuint gen_sky_buffer() {
@@ -351,21 +357,7 @@ void draw_triangles_3d(Attrib *attrib, GLuint buffer, int count) {
     glDisableVertexAttribArray(attrib->uv);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
-//////////////////////////////////////////////////////////////////
-//new prototype function to draw the triangles for sun
-void draw_triangles_2D_sun(Attrib *attrib, GLuint buffer, int count) {
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glEnableVertexAttribArray(attrib->position);
-    glEnableVertexAttribArray(attrib->uv);
-    glVertexAttribPointer(attrib->position, 3, GL_FLOAT, GL_FALSE,
-        sizeof(GLfloat) * 5, 0);
-    glVertexAttribPointer(attrib->uv, 2, GL_FLOAT, GL_FALSE,
-        sizeof(GLfloat) * 5, (GLvoid *)(sizeof(GLfloat) * 3));
-    glDrawArrays(GL_TRIANGLES, 0, count);
-    glDisableVertexAttribArray(attrib->position);
-    glDisableVertexAttribArray(attrib->uv);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
+
 void draw_triangles_2d(Attrib *attrib, GLuint buffer, int count) {
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glEnableVertexAttribArray(attrib->position);
@@ -1628,9 +1620,7 @@ void builder_block(int x, int y, int z, int w) {
         set_block(x, y, z, w);
     }
 }
-//possibly add another param for another attrib for the sun, delete shader program
-//in use for current implentation and use new shader param instead
-//only once we get to building the actual shadows
+
 int render_chunks(Attrib *attrib, Player *player) {
     int result = 0;
     State *s = &player->state;
@@ -1772,7 +1762,7 @@ void render_sun(Attrib *attrib, Player *player, GLuint buffer) {
     float matrix[16];
     set_matrix_3d(
         matrix, g->width, g->height,
-        0, 0, 0, s->rx, s->ry, g->fov, 0, g->render_radius);
+        0, 0, 0, s->rx, s->ry, g->fov, g->ortho, g->render_radius);
     glUseProgram(attrib->program);
     glUniformMatrix4fv(attrib->matrix, 1, GL_FALSE, matrix);
     glUniform1i(attrib->sampler, 4);
@@ -2917,7 +2907,7 @@ int main(int argc, char **argv) {
           //Call to render sun prior to loading wireframe/world
             render_sun(&sun_attrib, player, sun_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
-          //  glClear(GL_BLEND);
+            //glClear(GL_BLEND);
             int face_count = render_chunks(&block_attrib, player);
             render_signs(&text_attrib, player);
             render_sign(&text_attrib, player);
