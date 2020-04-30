@@ -236,6 +236,48 @@ void set_matrix_3d(
     mat_identity(matrix);
     mat_multiply(matrix, a, matrix);
 }
+///Function: set_matrix_sun
+///Params: matrix, window width, window height
+///        x, y, z = player positions
+///        rx, ry = player cursor positions
+///        fov, ortho, radius = field of view, orthogonal conditional, render radius, respectively
+///        time = (time_of_day() * 24) -6
+void set_matrix_sun(
+    float *matrix, int width, int height,
+    float x, float y, float z, float rx, float ry,
+    float fov, int ortho, int radius, int time)
+{
+  float a[16];
+  float b[16];
+  float c[16];
+  float aspect = (float)width / height;
+  float znear = 0.125;
+  float zfar = radius * 32 + 64;
+  mat_identity(a);
+  mat_translate(b, -x, -y, -z);
+  mat_multiply(a, b, a);
+  mat_rotate(b, cosf(rx), 0, sinf(rx), ry);
+  mat_multiply(a, b, a);
+  mat_rotate(b, 0, 1, 0, -rx);
+  mat_multiply(a, b, a);
+  ///This rotation is the one which allows the sun to rotate along x axis.
+  ///Reason why here is because of the order of operations for matrices.
+  ///Currenlty works to move sun across sky with slight errors when moving cursor position.
+  ///Sun will always appear in same spot when looked at, although panning causes errors,
+  /// as mentioned previously.
+  mat_rotate(b, 1, 0, 0, -(PI / 12) * time);
+  mat_multiply(a, b, a);
+  if (ortho) {
+      int size = ortho;
+      mat_ortho(b, -size * aspect, size * aspect, -size, size, -zfar, zfar);
+  }
+  else {
+      mat_perspective(b, fov, aspect, znear, zfar);
+  }
+  mat_multiply(a, b, a);
+  mat_identity(matrix);
+  mat_multiply(matrix, a, matrix);
+}
 
 void set_matrix_item(float *matrix, int width, int height, int scale) {
     float a[16];

@@ -9,14 +9,26 @@
 attribute vec4 position;
 attribute vec3 normal;
 attribute vec2 uv;
-//uniform float timer;
+//Keeping these 2 for now, will delete if not needed
+uniform vec4 timerPos;
+uniform int timer;
+
 
 varying vec2 frag_uv;
 uniform mat4 matrix;
 
 void main()
 {
+  gl_Position = matrix * position;
+  frag_uv = uv;
 
-    gl_Position = matrix * position;
+/*
+    if(position.y == -1) {
+    gl_Position = matrix * (position + timerPos + angleVector);
     frag_uv = uv;
+  } else {
+    gl_Position = matrix * (position + timerPos);
+    frag_uv = uv;
+  }
+  */
 }

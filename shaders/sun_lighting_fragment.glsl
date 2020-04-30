@@ -10,14 +10,18 @@
 #version 120
 
 uniform sampler2D sampler;
-uniform float frag_timer;
+//uniform float frag_timer;
 
 varying vec2 frag_uv;
 
 void main()
 {
-
-    gl_FragColor = texture2D(sampler, frag_uv);
+    vec4 color = texture2D(sampler, frag_uv);
+    //Sun is now a circle rather than a cube
+    //checking alpha value in vector color to see if it is a dark color. If it is, discard it.
+    if(color.a < 0.1)
+      discard;
+    gl_FragColor = color;
 
 
 }
