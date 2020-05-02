@@ -21,11 +21,11 @@ Last Modified 4/23/2020
 
 void generateDepthMapFBO(const unsigned int depthMapFBO){
 
-    glGenFramebuffers(1, &depthMap);
+    glGenFramebuffers(1, &depthMapFBO);
 
 };
 
-unsigned int initDShadowDepthMap(unsigned int& depthMap, unsigned int& depthMapFBO const int SHADOW_DEPTH, const int SHADOW_HEIGHT)(){
+void initDShadowDepthMap(unsigned int& depthMap, unsigned int& depthMapFBO const int SHADOW_DEPTH, const int SHADOW_HEIGHT)(){
 
     glGenTexture(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -37,8 +37,36 @@ unsigned int initDShadowDepthMap(unsigned int& depthMap, unsigned int& depthMapF
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glFramebufferTExture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+unsigned int createRenderBuffer(const int SHADOW_DEPTH, const int SHADOW_HEIGHT){
+		
+	unsigned int RBO;
+	
+	glGenRenderbuffers(1, &RBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SHADOW_DEPTH, SHADOW_HEIGHT); //if framebuffer errors, internalformat change?
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	
+	// malloc(RBO)?
+	
+	return RBO;
+}
+
+void BindFramebufferAndRenderbuffer(unsigned int& frameBuffer, unsigned int& renderBuffer){
+	
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBuffer);
+	
+	//check if framebuffer is complete
+	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
+		//inform whoever that there is an issue with the framebuffer
+		std::cout << "ERROR: Framebuffer for depth map rendering incomplete. dshadows.c for framebuffer generation" << std::endl;
+	}
+	
+	glBindFrameBuffer(GL_FRAMEBUFFER, frameBuffer);
+	
 }
