@@ -42,8 +42,10 @@ Created file and declared generateDepthMapFBO() and initDShadowDepthMap()
 public:
 
     void generateDepthMapFBO(const unsigned int depthMapFBO);
-    unsigned int initDShadowDepthMap( unsigned int& depthMap, const int SHADOW_DEPTH, const int SHADOW_HEIGHT);
-
+    void initDShadowDepthMap( unsigned int& depthMap, const int SHADOW_DEPTH, const int SHADOW_HEIGHT);
+	//void depthTest(unsigned int& depthMap);
+	unsigned int createRenderBuffer(const int SHADOW_DEPTH, const int SHADOW_HEIGHT);
+	void BindFramebufferAndRenderbuffer(unsigned int& frameBuffer, unsigned int& renderBuffer);
 
 
 #endif // DSHADOWS_H_INCLUDED
