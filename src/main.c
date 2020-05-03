@@ -2859,9 +2859,9 @@ int main(int argc, char **argv) {
         //////////////////////////////////////////////////////////////////////
         //every 25 second in REAL time is an hour in game
         //Trying to use a difference check to enable rotation only then
-        int prevCheck = time_of_day() * 24;
         while (1) {
             // WINDOW SIZE AND SCALE //
+            int hour = time_of_day() * 24;
             g->scale = get_scale_factor();
             glfwGetFramebufferSize(g->window, &g->width, &g->height);
             glViewport(0, 0, g->width, g->height);
@@ -2924,11 +2924,13 @@ int main(int argc, char **argv) {
             ///
             ///Enabling GL_BLEND so as to mix the colors of the sky and sun together
             ///
+            if(hour >= 6 && hour <= 18) {
             glEnable(GL_BLEND);
             //Call to render sun prior to loading wireframe/world
             render_sun(&sun_attrib, player, sun_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
             glClear(GL_BLEND);
+            }
             int face_count = render_chunks(&block_attrib, player);
             render_signs(&text_attrib, player);
             render_sign(&text_attrib, player);
