@@ -247,6 +247,29 @@ GLuint gen_wireframe_buffer(float x, float y, float z, float n) {
     make_cube_wireframe(data, x, y, z, n);
     return gen_buffer(sizeof(data), data);
 }
+///
+/// \returns GL unsigned int buffer used for the vertex shader to produce
+/// vertex values. Offest of 8 since the "face" has x, y, and z components to both the
+/// positions and normals. Texture coordingate uv has just 2 ( u = x, v = y )
+GLuint gen_sun_buffer() {
+    GLfloat *data = malloc_faces(8, 1);
+    // Generating buffer data for sun
+    // z is the render radius (10) * 32 + 64 (or 384) to render in same area as the skybox
+
+    ///
+    ///Start at positive z, once noon hits, the vertex shader will flip the z value to
+    ///-384 to render correctly after noon.
+    ///
+
+    int y = 0, z = 384;
+    // Call to make_sun_cube_faces,
+    // Input: data, 1's represent basic unit of 1 for left, right, top, bottom, front, and back
+    // "0, y, z" are the starting values for each y and z position vertex and 10 represents the
+    // offset for how big the distance is between vertices
+    make_sun_face(data, 0, y, z, 10);
+    //return gen_buffer(sizeof(data), data);
+    return gen_faces(8, 1, data);
+  }
 
 GLuint gen_sky_buffer() {
     float data[12288];
@@ -1730,6 +1753,29 @@ void render_sky(Attrib *attrib, Player *player, GLuint buffer) {
     glUniform1f(attrib->timer, time_of_day());
     draw_triangles_3d(attrib, buffer, 512 * 3);
 }
+///
+///Function render_sun \returns 1 if successful. 0 otherwise.
+///Params: Attrib object for sun
+///        Attrib object for player to get current state
+///        Gl unsigned int passed from gen_sun_buffer with information about vertex values
+///
+int render_sun(Attrib *attrib, Player *player, GLuint buffer) {
+    State *s = &player->state;
+    float matrix[16];
+    // subtracting by 6 so that the indexing is correct: 12 would be slot 6 and 6 would be 0
+    // subtracting by 12 after 12 pm for correct values up to 18 (6 pm)
+    int hour = (time_of_day() *24) - 6;
+    set_matrix_sun(
+        matrix, g->width, g->height,
+        0, 0, 0, s->rx, s->ry, g->fov, g->ortho, g->render_radius, hour);
+    glUseProgram(attrib->program);
+    glUniformMatrix4fv(attrib->matrix, 1, GL_FALSE, matrix);
+    glUniform1i(attrib->sampler, 4);
+    glUniform1f(attrib->extra2, hour);
+    draw_triangles_3d(attrib, buffer, 512);
+
+
+}
 
 void render_wireframe(Attrib *attrib, Player *player) {
     State *s = &player->state;
@@ -2651,11 +2697,32 @@ int main(int argc, char **argv) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     load_png_texture("textures/sign.png");
 
+    //adding sun
+    GLuint sun;
+    glGenTextures(1, &sun);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, sun);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    load_png_texture("textures/sun.png");
+    /*
+    glMatrixMode(GL_TEXTURE4);
+    glTranslatef(g->width/2, g->height/2, 0);
+    glRotatef(45, 0, 1, 0);
+    glTranslatef(-g->width/2, -g->height/2, 0);
+*/
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_INTEGER, sun);
+    //load_png_texture("textures/sun.png");
+
     // LOAD SHADERS //
     Attrib block_attrib = {0};
     Attrib line_attrib = {0};
     Attrib text_attrib = {0};
     Attrib sky_attrib = {0};
+    //adding sun attribute
+    Attrib sun_attrib = {0};
     GLuint program;
 
     program = load_program(
@@ -2697,6 +2764,21 @@ int main(int argc, char **argv) {
     sky_attrib.matrix = glGetUniformLocation(program, "matrix");
     sky_attrib.sampler = glGetUniformLocation(program, "sampler");
     sky_attrib.timer = glGetUniformLocation(program, "timer");
+
+    //shader for sunlight
+    program = load_program(
+        "shaders/sun_lighting_vertex.glsl", "shaders/sun_lighting_fragment.glsl");
+    sun_attrib.program = program;
+    sun_attrib.position = glGetAttribLocation(program, "position");
+    sun_attrib.normal = glGetAttribLocation(program, "normal");
+    sun_attrib.uv = glGetAttribLocation(program, "uv");
+    sun_attrib.matrix = glGetUniformLocation(program, "matrix");
+    sun_attrib.sampler = glGetUniformLocation(program, "sampler");
+    sun_attrib.extra1 = glGetUniformLocation(program, "timerPos");
+    sun_attrib.extra2 = glGetUniformLocation(program, "timer");
+
+
+
 
     // CHECK COMMAND LINE ARGUMENTS //
     if (argc == 2 || argc == 3) {
@@ -2756,6 +2838,7 @@ int main(int argc, char **argv) {
         double last_commit = glfwGetTime();
         double last_update = glfwGetTime();
         GLuint sky_buffer = gen_sky_buffer();
+        GLuint sun_buffer = gen_sun_buffer();
 
         Player *me = g->players;
         State *s = &g->players->state;
@@ -2773,6 +2856,10 @@ int main(int argc, char **argv) {
 
         // BEGIN MAIN LOOP //
         double previous = glfwGetTime();
+        //////////////////////////////////////////////////////////////////////
+        //every 25 second in REAL time is an hour in game
+        //Trying to use a difference check to enable rotation only then
+        int prevCheck = time_of_day() * 24;
         while (1) {
             // WINDOW SIZE AND SCALE //
             g->scale = get_scale_factor();
@@ -2834,6 +2921,14 @@ int main(int argc, char **argv) {
             glClear(GL_DEPTH_BUFFER_BIT);
             render_sky(&sky_attrib, player, sky_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
+            ///
+            ///Enabling GL_BLEND so as to mix the colors of the sky and sun together
+            ///
+            glEnable(GL_BLEND);
+            //Call to render sun prior to loading wireframe/world
+            render_sun(&sun_attrib, player, sun_buffer);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glClear(GL_BLEND);
             int face_count = render_chunks(&block_attrib, player);
             render_signs(&text_attrib, player);
             render_sign(&text_attrib, player);
@@ -2922,6 +3017,7 @@ int main(int argc, char **argv) {
                 g->fov = 65;
 
                 render_sky(&sky_attrib, player, sky_buffer);
+                render_sun(&sun_attrib, player, sun_buffer);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 render_chunks(&block_attrib, player);
                 render_signs(&text_attrib, player);

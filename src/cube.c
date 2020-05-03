@@ -78,6 +78,43 @@ void make_cube_faces(
         }
     }
 }
+///
+/// \returns void, creates just one face of a cube
+///
+void make_sun_face(
+    float *data, int x, int y, int z, float n)
+    {
+
+      static const float positions[4][3] = {{-1, -1, -1}, {-1, +1, -1}, {+1, -1, -1}, {+1, +1, -1}};
+
+      static const float normals[3] = {0, 0, -1};
+
+      static const float uvs[4][2] = {{0, 0}, {1, 0}, {0, 1}, {1, 1}};
+
+      static const float indices[6] = {0, 3, 2, 0, 1, 3};
+      float *d = data;
+
+      ///
+      /// This loop makes the sun square using the "front" index (4) values for
+      /// the positions and normals. UV values are arbitrary in this case due to
+      /// the fact that I am using the whole texture rather than an element of it
+      ///
+      for (int i = 0; i < 1; i++) {
+
+
+          for (int v = 0; v < 6; v++) {
+              int j = indices[v];
+              *(d++) = x + n * positions[j][0];
+              *(d++) = y + n * positions[j][1];
+              *(d++) = z + n * positions[j][2];
+              *(d++) = normals[0];
+              *(d++) = normals[1];
+              *(d++) = normals[2];
+              *(d++) = uvs[j][0];
+              *(d++) = uvs[j][1];
+          }
+      }
+    }
 
 void make_cube(
     float *data, float ao[6][4], float light[6][4],

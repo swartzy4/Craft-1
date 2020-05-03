@@ -1,6 +1,7 @@
 #ifndef _matrix_h_
 #define _matrix_h_
 
+
 void normalize(float *x, float *y, float *z);
 void mat_identity(float *matrix);
 void mat_translate(float *matrix, float dx, float dy, float dz);
@@ -23,6 +24,19 @@ void set_matrix_3d(
     float *matrix, int width, int height,
     float x, float y, float z, float rx, float ry,
     float fov, int ortho, int radius);
+
+
+    ///Function: set_matrix_sun
+    ///Traces to Requirement #3: "Sun for a reference light source"
+    ///Params: matrix, window width, window height
+    ///        x, y, z = player positions
+    ///        rx, ry = player cursor positions
+    ///        fov, ortho, radius = field of view, orthogonal conditional, render radius, respectively
+    ///        time = (time_of_day() * 24) -6
+void set_matrix_sun(
+    float *matrix, int width, int height,
+    float x, float y, float z, float rx, float ry,
+    float fov, int ortho, int radius, int time);
 void set_matrix_item(float *matrix, int width, int height, int scale);
 
 #endif

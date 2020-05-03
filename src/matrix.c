@@ -2,6 +2,8 @@
 #include "config.h"
 #include "matrix.h"
 #include "util.h"
+#include <stdio.h>
+
 
 void normalize(float *x, float *y, float *z) {
     float d = sqrtf((*x) * (*x) + (*y) * (*y) + (*z) * (*z));
@@ -235,6 +237,68 @@ void set_matrix_3d(
     mat_multiply(a, b, a);
     mat_identity(matrix);
     mat_multiply(matrix, a, matrix);
+}
+
+void set_matrix_sun(
+    float *matrix, int width, int height,
+    float x, float y, float z, float rx, float ry,
+    float fov, int ortho, int radius, int time)
+{
+  float a[16];
+  float b[16];
+  float aspect = (float)width / height;
+  float znear = 0.125;
+  float zfar = radius * 32 + 64;
+  /// Initial rotations are for fixating the sun according to cursor positions.
+  /// The call to rotate using +/-(PI /12) is what rotates the sun to correct position
+  /// for a given time of day
+  /// PI/12 chosen since it is 15 degrees, and multiplied by 6 (number of hours from horizon to noon)
+  /// you get 90 degrees, which is how much the angle is from horizon to noon,
+  /// and of course from noon to 6.
+  /// Panning left or right, since the rotation is paired with rx and ry cursor values
+  /// causes the sun to rotate in the oppposite direction of movement.
+  /// This causes the sun to not be seen if the character turns around first when the
+  /// sun is close to or at noon.
+
+  ///
+  ///This if statement takes care of angling the sun in the correct position after
+  ///noon. Errors in angle change as player moves does become more apparent with increased angles used.
+  ///However, Requirement #3 is now fulfilled given specifications made.
+  ///
+  if(time > 6)
+  {
+    mat_identity(a);
+    mat_translate(b, -rx, -ry, -z);
+    mat_multiply(a, b, a);
+    mat_rotate(b, -cosf(rx), 0, -sinf(rx), -ry);
+    mat_multiply(a, b, a);
+    mat_rotate(b, 0, 1, 0, rx);
+    mat_multiply(a, b, a);
+    mat_rotate(b, 0.1, 0, 0, (PI / 12) * time);
+    mat_multiply(a, b, a);
+  }
+  else {
+    mat_identity(a);
+    mat_translate(b, -rx, -ry, -z);
+    mat_multiply(a, b, a);
+    mat_rotate(b, cosf(rx), 0, sinf(rx), ry);
+    mat_multiply(a, b, a);
+    mat_rotate(b, 0, 1, 0, -rx);
+    mat_multiply(a, b, a);
+    mat_rotate(b, 0.1, 0, 0, -(PI /12) * time);
+    mat_multiply(a, b, a);
+  }
+  
+  if (ortho) {
+      int size = ortho;
+      mat_ortho(b, -size * aspect, size * aspect, -size, size, -zfar, zfar);
+  }
+  else {
+      mat_perspective(b, fov, aspect, znear, zfar);
+  }
+  mat_multiply(a, b, a);
+  mat_identity(matrix);
+  mat_multiply(matrix, a, matrix);
 }
 
 void set_matrix_item(float *matrix, int width, int height, int scale) {
