@@ -26,7 +26,7 @@ void set_matrix_3d(
 void set_matrix_sun(
     float *matrix, int width, int height,
     float x, float y, float z, float rx, float ry,
-    float fov, int ortho, int radius, int time);
+    float fov, int ortho, int radius, int time, int check);
 void set_matrix_item(float *matrix, int width, int height, int scale);
 
 #endif

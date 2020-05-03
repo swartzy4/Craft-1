@@ -19,16 +19,13 @@ uniform mat4 matrix;
 
 void main()
 {
+  vec4 newPos = vec4(0.0, 0.0, -768.0, 1.0);
+  if(timer > 6)
+  {
+    if(position.y != -384)
+      gl_Position = matrix * (position + newPos);
+      frag_uv = uv;
+  }
   gl_Position = matrix * position;
   frag_uv = uv;
-
-/*
-    if(position.y == -1) {
-    gl_Position = matrix * (position + timerPos + angleVector);
-    frag_uv = uv;
-  } else {
-    gl_Position = matrix * (position + timerPos);
-    frag_uv = uv;
-  }
-  */
 }

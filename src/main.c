@@ -1776,23 +1776,19 @@ void render_sky(Attrib *attrib, Player *player, GLuint buffer) {
 // arced path values using correct y and z values to figure it out.
 // also, vertex changes would have to reflect the changes made to timerPos as well,
 // so as to ensure scaling is correct
-void render_sun(Attrib *attrib, Player *player, GLuint buffer) {
+int render_sun(Attrib *attrib, Player *player, GLuint buffer, int check) {
     State *s = &player->state;
     float matrix[16];
-    float a[16];
-    float b[16];
     // subtracting by 6 so that the indexing is correct: 12 would be slot 6 and 6 would be 0
     // subtracting by 12 after 12 pm for correct values up to 18 (6 pm)
     int hour = (time_of_day() *24) - 6;
-    if(hour > 12)
-      hour -= 12;
     set_matrix_sun(
         matrix, g->width, g->height,
-        0, 0, 0, s->rx, s->ry, g->fov, g->ortho, g->render_radius, hour);
+        0, 0, 0, s->rx, s->ry, g->fov, g->ortho, g->render_radius, hour, check);
     glUseProgram(attrib->program);
     glUniformMatrix4fv(attrib->matrix, 1, GL_FALSE, matrix);
     glUniform1i(attrib->sampler, 4);
-  //  glUniform1f(attrib->extra2, hour);
+    glUniform1f(attrib->extra2, hour);
   //glUniform4f(attrib->extra3, 0, 1.66, 1.66, 1);
   /*This was the original function that moved the actual position of the texture to the new spot
   in the sky. Now this is handled through new function set_matrix_sun above*/
@@ -2881,8 +2877,13 @@ int main(int argc, char **argv) {
 
         // BEGIN MAIN LOOP //
         double previous = glfwGetTime();
+        //////////////////////////////////////////////////////////////////////
+        //every 25 second in REAL time is an hour in game
+        //Trying to use a difference check to enable rotation only then
+        int prevCheck = time_of_day() * 24;
         while (1) {
             // WINDOW SIZE AND SCALE //
+            int check = 0;
             g->scale = get_scale_factor();
             glfwGetFramebufferSize(g->window, &g->width, &g->height);
             glViewport(0, 0, g->width, g->height);
@@ -2895,12 +2896,17 @@ int main(int argc, char **argv) {
                 memset(&fps, 0, sizeof(fps));
             }
             update_fps(&fps);
+            int nowCheck = time_of_day() * 24;
             double now = glfwGetTime();
             double dt = now - previous;
             dt = MIN(dt, 0.2);
             dt = MAX(dt, 0.0);
             previous = now;
+            if((nowCheck - prevCheck) != 0)
+            {
+              check = 1;
 
+            } else check = 0;
             // HANDLE MOUSE INPUT //
             handle_mouse_input();
 
@@ -2942,9 +2948,12 @@ int main(int argc, char **argv) {
             glClear(GL_DEPTH_BUFFER_BIT);
             render_sky(&sky_attrib, player, sky_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
+            ///
+            ///Enabling GL_BLEND so as to mix the colors of the sky and sun together
+            ///
             glEnable(GL_BLEND);
-          //Call to render sun prior to loading wireframe/world
-            render_sun(&sun_attrib, player, sun_buffer);
+            //Call to render sun prior to loading wireframe/world
+            render_sun(&sun_attrib, player, sun_buffer, check);
             glClear(GL_DEPTH_BUFFER_BIT);
             glClear(GL_BLEND);
             int face_count = render_chunks(&block_attrib, player);
@@ -3035,7 +3044,7 @@ int main(int argc, char **argv) {
                 g->fov = 65;
 
                 render_sky(&sky_attrib, player, sky_buffer);
-                render_sun(&sun_attrib, player, sun_buffer);
+                render_sun(&sun_attrib, player, sun_buffer, check);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 render_chunks(&block_attrib, player);
                 render_signs(&text_attrib, player);
