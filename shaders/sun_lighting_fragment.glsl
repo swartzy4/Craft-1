@@ -17,8 +17,10 @@ varying vec2 frag_uv;
 void main()
 {
     vec4 color = texture2D(sampler, frag_uv);
-    //Sun is now a circle rather than a cube
-    //checking alpha value in vector color to see if it is a dark color. If it is, discard it.
+    ///
+    ///Sun is now a circle rather than a cube
+    ///checking alpha value in vector color to see if it is a dark color. If it is, discard it.
+    ///
     if(color.a < 0.1)
       discard;
     gl_FragColor = color;

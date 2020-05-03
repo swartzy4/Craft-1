@@ -247,26 +247,26 @@ GLuint gen_wireframe_buffer(float x, float y, float z, float n) {
     make_cube_wireframe(data, x, y, z, n);
     return gen_buffer(sizeof(data), data);
 }
-/// New function created for generating the sun buffer for creating the sun sphere
-/// in the skybox using the sun attribute
-/// Update 04/21: Changed buffer so that the y and x params for make_sun_cube_faces
-/// is able to generate the sun in the sky anywhere by adjusting them accordingly
-/// Will be updating soon to use time_of_day() to move accordingly to the day/night cycle
-/// Update 04/29: Changed params for make_sun_cube_faces to just the beginning values of y and z
-/// since the buffer is only made once and updated values are done in vertex shader for sun
+///
+/// \returns GL unsigned int buffer used for the vertex shader to produce
+/// vertex values. Offest of 8 since the "face" has x, y, and z components to both the
+/// positions and normals. Texture coordingate uv has just 2 ( u = x, v = y )
 GLuint gen_sun_buffer() {
     GLfloat *data = malloc_faces(8, 1);
     // Generating buffer data for sun
-    // z is the render radius (10) * 32 + 64 bits to render in same area as the skybox
-    // Currently sun is set to noon, and the value 10*32 represents it being straight above,
-    // 0 on the z and x indicate it to be the center of the world as well
-    // 320 is zfar, so divide the difference and add up to y by 64 each hour, decrement z by 64 each hour
+    // z is the render radius (10) * 32 + 64 (or 384) to render in same area as the skybox
+
+    ///
+    ///Start at positive z, once noon hits, the vertex shader will flip the z value to
+    ///-384 to render correctly after noon.
+    ///
+
     int y = 0, z = 384;
     // Call to make_sun_cube_faces,
     // Input: data, 1's represent basic unit of 1 for left, right, top, bottom, front, and back
     // "0, y, z" are the starting values for each y and z position vertex and 10 represents the
     // offset for how big the distance is between vertices
-    make_sun_cube_faces(data, 1, 1, 1, 1, 1, 1, 0, y, z, 10);
+    make_sun_face(data, 0, y, z, 10);
     //return gen_buffer(sizeof(data), data);
     return gen_faces(8, 1, data);
   }
@@ -1753,30 +1753,13 @@ void render_sky(Attrib *attrib, Player *player, GLuint buffer) {
     glUniform1f(attrib->timer, time_of_day());
     draw_triangles_3d(attrib, buffer, 512 * 3);
 }
-////////////////////////////////////////////////////////////////////////////
-//work in progress obviously
-//NOTE: ALL matrix tranlations, rotations, etc done for all projection and view
-// matrices in matrix.c
-//Update 03-30 set matrix 3d is the function I think assiocated with creating the sun in
-//an area so that two world domes aren't created (i think)
-//Update 03-31 set initial values for attributes for the sun shaders here, maybe
-//not use draw_triangles_3d; make one? or just send random value as buffer param for it
-/** Function render_sun, takes an attribute onject, player object, and Gl unsigned
-*  int as param values.
-*  Implements Req 3) The software shall have a "sun" for a reference light source.
-*  Update 04/29: Sun can move in sky but rotating texture object is a bit confusing how
-*  to correctly implement. Currently just updating the timerPos uniform variable for time of day
-*  in order to cause movement to next spot in sky. Update hopefully coming soon with correct
-*  orientation when moving
-*
-*/
-//updatet 04/28: need to use rotation somehow, either through vertex changes ( 0.34 increments on y and z)
-// or rotation of texture object somehow without glMatrixMode since it's defunct now
-// nned to change unit of chnage in timerPos (extra1) to reflect more accurate values by figuring out
-// arced path values using correct y and z values to figure it out.
-// also, vertex changes would have to reflect the changes made to timerPos as well,
-// so as to ensure scaling is correct
-int render_sun(Attrib *attrib, Player *player, GLuint buffer, int check) {
+///
+///Function render_sun \returns 1 if successful. 0 otherwise.
+///Params: Attrib object for sun
+///        Attrib object for player to get current state
+///        Gl unsigned int passed from gen_sun_buffer with information about vertex values
+///
+int render_sun(Attrib *attrib, Player *player, GLuint buffer) {
     State *s = &player->state;
     float matrix[16];
     // subtracting by 6 so that the indexing is correct: 12 would be slot 6 and 6 would be 0
@@ -1784,15 +1767,11 @@ int render_sun(Attrib *attrib, Player *player, GLuint buffer, int check) {
     int hour = (time_of_day() *24) - 6;
     set_matrix_sun(
         matrix, g->width, g->height,
-        0, 0, 0, s->rx, s->ry, g->fov, g->ortho, g->render_radius, hour, check);
+        0, 0, 0, s->rx, s->ry, g->fov, g->ortho, g->render_radius, hour);
     glUseProgram(attrib->program);
     glUniformMatrix4fv(attrib->matrix, 1, GL_FALSE, matrix);
     glUniform1i(attrib->sampler, 4);
     glUniform1f(attrib->extra2, hour);
-  //glUniform4f(attrib->extra3, 0, 1.66, 1.66, 1);
-  /*This was the original function that moved the actual position of the texture to the new spot
-  in the sky. Now this is handled through new function set_matrix_sun above*/
-  //glUniform4f(attrib->extra1, 0, 64*hour, -64*hour, 1);
     draw_triangles_3d(attrib, buffer, 512);
 
 
@@ -2883,7 +2862,6 @@ int main(int argc, char **argv) {
         int prevCheck = time_of_day() * 24;
         while (1) {
             // WINDOW SIZE AND SCALE //
-            int check = 0;
             g->scale = get_scale_factor();
             glfwGetFramebufferSize(g->window, &g->width, &g->height);
             glViewport(0, 0, g->width, g->height);
@@ -2896,17 +2874,12 @@ int main(int argc, char **argv) {
                 memset(&fps, 0, sizeof(fps));
             }
             update_fps(&fps);
-            int nowCheck = time_of_day() * 24;
             double now = glfwGetTime();
             double dt = now - previous;
             dt = MIN(dt, 0.2);
             dt = MAX(dt, 0.0);
             previous = now;
-            if((nowCheck - prevCheck) != 0)
-            {
-              check = 1;
 
-            } else check = 0;
             // HANDLE MOUSE INPUT //
             handle_mouse_input();
 
@@ -2953,7 +2926,7 @@ int main(int argc, char **argv) {
             ///
             glEnable(GL_BLEND);
             //Call to render sun prior to loading wireframe/world
-            render_sun(&sun_attrib, player, sun_buffer, check);
+            render_sun(&sun_attrib, player, sun_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
             glClear(GL_BLEND);
             int face_count = render_chunks(&block_attrib, player);
@@ -3044,7 +3017,7 @@ int main(int argc, char **argv) {
                 g->fov = 65;
 
                 render_sky(&sky_attrib, player, sky_buffer);
-                render_sun(&sun_attrib, player, sun_buffer, check);
+                render_sun(&sun_attrib, player, sun_buffer);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 render_chunks(&block_attrib, player);
                 render_signs(&text_attrib, player);
